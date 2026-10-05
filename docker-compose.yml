@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: railway
+      POSTGRES_PASSWORD: railway
+      POSTGRES_DB: railway_duty
+    ports:
+      - "5432:5432"
+    volumes:
+      # 首次启动自动初始化（建表、GiST 排除约束、唯一索引）
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U railway -d railway_duty"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://railway:railway@db:5432/railway_duty
+      HTTP_HOST: "0.0.0.0"
+      HTTP_PORT: "8000"
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:
